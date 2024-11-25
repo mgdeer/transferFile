@@ -26,10 +26,6 @@ public class FileClient {
             dos.writeInt(files.length);
 
             for (File file : files) {
-                if (!file.getName().matches("\\A\\p{ASCII}*\\z")){
-                    System.err.println("파일 이름에 비 아스키 문자가 포함되어 있습니다: " + file.getName());
-                    continue;
-                }
                 dos.writeUTF(file.getName());
                 System.out.println("file path:" + file.getAbsolutePath());
                 dos.writeLong(file.length());
