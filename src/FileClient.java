@@ -1,10 +1,9 @@
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class FileClient {
     public static void main(String[] args) {
@@ -15,33 +14,34 @@ public class FileClient {
         File dir = new File(parentPath.toString());
         File[] files = dir.listFiles();
 
-        if (files == null) {
+        if (files == null || files.length == 0) {
             System.out.println("No files found");
             return;
         }
 
-        try (Socket socket = new Socket(serverAddress, serverPort)) {
-            DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-
-            dos.writeInt(files.length);
+        try (ExecutorService executorService = Executors.newFixedThreadPool(4)) {
 
             for (File file : files) {
-                dos.writeUTF(file.getName());
-                System.out.println("file path:" + file.getAbsolutePath());
-                dos.writeLong(file.length());
-                System.out.println("file size: " + file.length());
+                executorService.submit(() -> {
+                    try (Socket socket = new Socket(serverAddress, serverPort);
+                         DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+                         FileInputStream fis = new FileInputStream(file)) {
 
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                try (FileInputStream fis = new FileInputStream(file)) {
-                    while ((bytesRead = fis.read(buffer)) != -1) {
-                        dos.write(buffer, 0, bytesRead);
+                        dos.writeUTF(file.getName());
+                        dos.writeLong(file.length());
+
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = fis.read(buffer)) != -1) {
+                            dos.write(buffer, 0, bytesRead);
+                        }
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
-                }
+                });
             }
 
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 }
